@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dealer Evaluation System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        select, button {
+            padding: 10px;
+            margin: 10px 0;
+            width: 100%;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e9ecef;
+            border-radius: 5px;
+        }
+        .dealer-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .dealer-item:hover {
+            background: #d4edda;
+        }
+        .price {
+            font-size: 18px;
+            font-weight: bold;
+            color: #28a745;
+            margin-top: 15px;
+            padding: 10px;
+            background: #d4edda;
+            border-radius: 5px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        hr {
+            margin: 20px 0;
+        }
+        .all-prices {
+            background: #d4edda;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .all-prices ul {
+            margin: 10px 0 0 20px;
+        }
+        .all-prices li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏭 Dealer Evaluation System</h1>
+        
+        <label>Select Product:</label>
+        <select id="productSelect">
+            <option value="">-- Select a product --</option>
+        </select>
+        
+        <div id="dealersSection" style="display:none;">
+            <label>Select Dealer:</label>
+            <select id="dealerSelect">
+                <option value="">-- Select a dealer --</option>
+            </select>
+        </div>
+        
+        <div id="priceResult" class="result" style="display:none;"></div>
+    </div>
+
+    <script>
+        // Nếu frontend và backend cùng domain (Vercel), dùng đường dẫn tương đối
+        // Nếu khác domain, thay URL bên dưới bằng URL thật của API
+        const PRODUCT_API_URL = '';  // Để trống nếu cùng domain, hoặc gõ URL đầy đủ
+        const PRICING_API_URL = '';   // Để trống nếu cùng domain, hoặc gõ URL đầy đủ
+        
+        let currentDealers = [];
+        
+        async function loadProducts() {
+            try {
+                const url = PRODUCT_API_URL ? `${PRODUCT_API_URL}/api/products` : '/api/products';
+                const response = await fetch(url);
+                const data = await response.json();
+                const select = document.getElementById('productSelect');
+                
+                data.products.forEach(product => {
+                    const option = document.createElement('option');
+                    option.value = product.id;
+                    option.textContent = `${product.name} - ${product.description}`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading products:', error);
+                document.getElementById('priceResult').innerHTML = 'Error loading products. Please check API.';
+                document.getElementById('priceResult').style.display = 'block';
+            }
+        }
+        
+        async function loadDealers(productId) {
+            try {
+                const url = PRICING_API_URL ? `${PRICING_API_URL}/api/pricing?productId=${productId}` : `/api/pricing?productId=${productId}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                const select = document.getElementById('dealerSelect');
+                
+                select.innerHTML = '<option value="">-- Select a dealer --</option>';
+                
+                // Thêm option "All dealers"
+                const allOption = document.createElement('option');
+                allOption.value = "all";
+                allOption.textContent = "-- All dealers --";
+                select.appendChild(allOption);
+                
+                if (data.dealers && data.dealers.length > 0) {
+                    document.getElementById('dealersSection').style.display = 'block';
+                    currentDealers = data.dealers;
+                    data.dealers.forEach(dealer => {
+                        const option = document.createElement('option');
+                        option.value = dealer.id;
+                        option.textContent = `${dealer.name} - ${dealer.location || ''}`;
+                        option.dataset.price = dealer.price;
+                        select.appendChild(option);
+                    });
+                } else {
+                    document.getElementById('dealersSection').style.display = 'none';
+                    showPrice('No dealers found for this product.');
+                }
+            } catch (error) {
+                console.error('Error loading dealers:', error);
+                showPrice('Error loading dealers. Please check API.');
+            }
+        }
+        
+        function showPrice(message) {
+            const priceDiv = document.getElementById('priceResult');
+            priceDiv.innerHTML = message;
+            priceDiv.style.display = 'block';
+        }
+        
+        function showAllDealersPrices() {
+            if (currentDealers && currentDealers.length > 0) {
+                let html = '<div class="all-prices"><strong>💰 All dealers prices:</strong><ul>';
+                currentDealers.forEach(dealer => {
+                    html += `<li><strong>${dealer.name}</strong> (${dealer.location || ''}): $${dealer.price}</li>`;
+                });
+                html += '</ul></div>';
+                document.getElementById('priceResult').innerHTML = html;
+                document.getElementById('priceResult').style.display = 'block';
+            }
+        }
+        
+        document.getElementById('productSelect').addEventListener('change', (e) => {
+            const productId = e.target.value;
+            if (productId) {
+                loadDealers(productId);
+            } else {
+                document.getElementById('dealersSection').style.display = 'none';
+                document.getElementById('priceResult').style.display = 'none';
+            }
+        });
+        
+        document.getElementById('dealerSelect').addEventListener('change', (e) => {
+            const selectedValue = e.target.value;
+            if (selectedValue === "all") {
+                showAllDealersPrices();
+            } else if (selectedValue) {
+                const selectedOption = e.target.options[e.target.selectedIndex];
+                const price = selectedOption.dataset.price;
+                const dealerName = selectedOption.textContent.split(' - ')[0];
+                showPrice(`💰 Price offered by <strong>${dealerName}</strong>: $${price}`);
+            } else {
+                document.getElementById('priceResult').style.display = 'none';
+            }
+        });
+        
+        // Khởi tạo
+        loadProducts();
+    </script>
+</body>
+</html>
